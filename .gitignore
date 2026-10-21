@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 venv/
 
+# React/Vite
+node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

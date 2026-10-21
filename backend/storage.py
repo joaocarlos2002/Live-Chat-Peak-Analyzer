@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / ".data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / ".data"
 
 
 def ensure_data_dirs() -> None:
@@ -28,14 +29,31 @@ def clear_data() -> None:
     """Remove generated data while preserving the .data directory itself."""
     ensure_data_dirs()
     for path in DATA_DIR.iterdir():
+        if path.name == "backend.log":
+            continue
         if path.is_dir():
-            import shutil
             shutil.rmtree(path)
         else:
             path.unlink()
     ensure_data_dirs()
 
 
+def delete_live_data(live_id: str) -> bool:
+    """Delete one live and only the files owned by that live."""
+    metadata = load_metadata(live_id)
+    if not metadata:
+        return False
+
+    metadata_path(live_id).unlink(missing_ok=True)
+    (DATA_DIR / "raw" / "chats" / f"{live_id}.jsonl").unlink(missing_ok=True)
+    video_root = (DATA_DIR / "videos").resolve()
+    video_path = Path(metadata.get("video_path", "")).resolve()
+    if video_path.is_file() and video_root in video_path.parents:
+        video_path.unlink()
+    report_dir = DATA_DIR / "reports" / live_id
+    if report_dir.is_dir():
+        shutil.rmtree(report_dir)
+    return True
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -67,6 +85,8 @@ def load_metadata(live_id: str) -> dict[str, Any] | None:
         if candidates:
             metadata["video_path"] = str(candidates[0])
             save_metadata(metadata)
+        else:
+            metadata["video_available"] = False
     return metadata
 
 
