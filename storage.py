@@ -19,6 +19,7 @@ def ensure_data_dirs() -> None:
         DATA_DIR / "processed" / "chats",
         DATA_DIR / "metadata",
         DATA_DIR / "reports",
+        DATA_DIR / "reports" / "clips",
     ):
         directory.mkdir(parents=True, exist_ok=True)
 
@@ -58,7 +59,15 @@ def load_metadata(live_id: str) -> dict[str, Any] | None:
     path = metadata_path(live_id)
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    video_path = metadata.get("video_path")
+    if video_path and not Path(video_path).is_file():
+        filename = Path(video_path).name
+        candidates = list((DATA_DIR / "videos").rglob(filename))
+        if candidates:
+            metadata["video_path"] = str(candidates[0])
+            save_metadata(metadata)
+    return metadata
 
 
 def save_metadata(metadata: dict[str, Any]) -> None:

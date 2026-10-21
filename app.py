@@ -193,6 +193,36 @@ def retry_chat(live: dict) -> None:
         update_job(job_id, 100, "failed", logs=live["limitations"], error=str(error))
 
 
+def create_clip(live: dict, start: float, end: float) -> Path:
+    if shutil.which("ffmpeg") is None:
+        raise RuntimeError("FFmpeg não está instalado ou não está disponível no PATH.")
+    video = Path(live.get("video_path", "")).resolve()
+    video_root = (DATA_DIR / "videos").resolve()
+    if video_root not in video.parents or not video.is_file():
+        raise FileNotFoundError("O vídeo local desta live não foi encontrado.")
+    duration = end - start
+    clip_dir = DATA_DIR / "reports" / live["id"] / "clips"
+    clip_dir.mkdir(parents=True, exist_ok=True)
+    target = clip_dir / f"{live['id']}-{int(start)}-{int(end)}.mp4"
+    command = [
+        "ffmpeg", "-y", "-ss", str(start), "-i", str(video),
+        "-t", str(duration), "-map", "0", "-c", "copy",
+        "-avoid_negative_ts", "make_zero", str(target),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=1800)
+    if result.returncode != 0 or not target.exists() or target.stat().st_size == 0:
+        fallback = [
+            "ffmpeg", "-y", "-ss", str(start), "-i", str(video),
+            "-t", str(duration), "-c:v", "libx264", "-c:a", "aac",
+            "-movflags", "+faststart", str(target),
+        ]
+        result = subprocess.run(fallback, capture_output=True, text=True, timeout=1800)
+    if result.returncode != 0 or not target.exists() or target.stat().st_size == 0:
+        detail = (result.stderr or result.stdout or "FFmpeg não gerou o arquivo.")[-800:].strip()
+        raise RuntimeError(detail)
+    return target
+
+
 def process_live(live: dict) -> None:
     job_id = live["job_id"]
     try:
@@ -300,6 +330,8 @@ class Handler(BaseHTTPRequestHandler):
             self._live_get(path.removeprefix("/api/lives/"), parse_qs(parsed.query))
         elif path.startswith("/media/"):
             self._serve_video(path.removeprefix("/media/"))
+        elif path.startswith("/clips/"):
+            self._serve_clip(path.removeprefix("/clips/"))
         elif path.startswith("/api/jobs/"):
             with LOCK:
                 job = JOBS.get(path.removeprefix("/api/jobs/"))
@@ -350,6 +382,30 @@ class Handler(BaseHTTPRequestHandler):
             save_metadata(live)
             threading.Thread(target=retry_chat, args=(live,), daemon=True).start()
             json_response(self, {"message": "Nova tentativa de coleta do chat iniciada.", "job_id": live["job_id"]}, HTTPStatus.ACCEPTED)
+            return
+        if path.startswith("/api/lives/") and path.endswith("/clip"):
+            live_id = path.removeprefix("/api/lives/").removesuffix("/clip")
+            live = load_metadata(live_id)
+            if not live:
+                json_response(self, {"error": "Live não encontrada."}, HTTPStatus.NOT_FOUND)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length))
+                start = float(payload.get("start"))
+                end = float(payload.get("end"))
+                if start < 0 or end <= start:
+                    raise ValueError("O fim deve ser maior que o início.")
+                if live.get("duration_seconds") and end > float(live["duration_seconds"]):
+                    raise ValueError("O fim do recorte ultrapassa a duração do vídeo.")
+                clip = create_clip(live, start, end)
+                json_response(self, {
+                    "message": "Trecho criado com sucesso.",
+                    "filename": clip.name,
+                    "download_url": f"/clips/{live_id}/{clip.name}",
+                }, HTTPStatus.CREATED)
+            except (ValueError, TypeError, json.JSONDecodeError, OSError, RuntimeError) as error:
+                json_response(self, {"error": str(error)}, HTTPStatus.BAD_REQUEST)
             return
         if path != "/api/lives":
             json_response(self, {"error": "Rota não encontrada."}, HTTPStatus.NOT_FOUND)
@@ -470,6 +526,33 @@ class Handler(BaseHTTPRequestHandler):
                     remaining -= len(chunk)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             # O player pode cancelar uma requisição ao trocar de posição ou formato.
+            return
+
+    def _serve_clip(self, resource: str) -> None:
+        parts = resource.split("/", 1)
+        if len(parts) != 2:
+            json_response(self, {"error": "Trecho inválido."}, HTTPStatus.NOT_FOUND)
+            return
+        live_id, filename = parts
+        if Path(filename).name != filename or not filename.endswith(".mp4"):
+            json_response(self, {"error": "Trecho inválido."}, HTTPStatus.NOT_FOUND)
+            return
+        clip = (DATA_DIR / "reports" / live_id / "clips" / filename).resolve()
+        clip_root = (DATA_DIR / "reports" / live_id / "clips").resolve()
+        if clip_root not in clip.parents or not clip.is_file():
+            json_response(self, {"error": "Trecho não encontrado."}, HTTPStatus.NOT_FOUND)
+            return
+        body_size = clip.stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(body_size))
+        self.end_headers()
+        try:
+            with clip.open("rb") as source:
+                while chunk := source.read(1024 * 1024):
+                    self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             return
 
     def _serve_static(self, name: str) -> None:

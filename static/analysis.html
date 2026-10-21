@@ -10,6 +10,41 @@
     </div>
   </section>
   <section class="card player-card"><video id="player" controls preload="metadata"></video><div id="video-empty" class="video-empty">Vídeo local indisponível</div><p id="video-note" class="muted"></p></section>
+  <section class="card editor-card">
+    <div class="editor-toolbar">
+      <div class="transport"><button id="skip-back" type="button" title="Voltar 5 segundos">−5s</button><button id="toggle-play" class="play-button" type="button" title="Reproduzir">▶</button><button id="skip-forward" type="button" title="Avançar 5 segundos">+5s</button></div>
+      <span id="current-time" class="timecode">00:00:00 / 00:00:00</span>
+      <div class="editor-actions"><button id="add-marker" class="secondary-button" type="button">＋ Marcação</button><button id="clear-markers" class="secondary-button" type="button">Limpar</button><label class="zoom-control" title="Zoom da timeline">− <input id="timeline-zoom" type="range" min="1" max="4" step=".1" value="1"> +</label><span id="marker-help" class="muted">Arraste as alças para selecionar o corte.</span></div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="track-label">Vídeo</div>
+      <div class="timeline-main">
+        <div id="timeline-ruler" class="timeline-ruler"></div>
+        <div id="video-timeline" class="video-timeline" role="slider" aria-label="Timeline do vídeo" tabindex="0">
+          <div class="video-track"><div id="video-filmstrip" class="video-filmstrip"></div><span class="track-name">Vídeo</span></div>
+          <div class="audio-track"><div id="audio-waveform" class="audio-waveform"></div><span class="track-name">Áudio</span></div>
+          <div id="timeline-selection" class="timeline-selection"><button id="start-handle" class="trim-handle" type="button" aria-label="Arrastar início do corte"></button><button id="end-handle" class="trim-handle" type="button" aria-label="Arrastar fim do corte"></button></div>
+          <div id="timeline-progress" class="timeline-progress"></div>
+          <div id="timeline-playhead" class="timeline-playhead"></div>
+          <div id="timeline-peaks"></div>
+          <div id="timeline-markers"></div>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-footer"><span>Início <b id="start-readout">00:00:00</b></span><span>Seleção <b id="selection-readout">00:00:00</b></span><span>Fim <b id="end-readout">00:00:00</b></span></div>
+    <div id="marker-list" class="marker-list"></div>
+    <div class="inline-clip">
+      <div class="inline-clip-title"><strong>Recorte selecionado</strong><span id="clip-duration" class="data-badge">Duração: --:--:--</span></div>
+      <div class="clip-controls">
+        <label>Início<input id="clip-start" type="number" min="0" step="0.1" value="0"></label>
+        <button id="set-start" class="secondary-button" type="button">Usar posição atual</button>
+        <label>Fim<input id="clip-end" type="number" min="0" step="0.1" value="60"></label>
+        <button id="set-end" class="secondary-button" type="button">Usar posição atual</button>
+        <button id="create-clip" class="clip-button" type="button">Criar e baixar trecho</button>
+      </div>
+      <p id="clip-message" class="clip-message"></p>
+    </div>
+  </section>
   <section class="card chart-card"><div class="section-title"><div><h2>Timeline do fluxo</h2><p class="muted">As barras mais altas são os momentos com maior volume de mensagens. Clique para ir ao vídeo.</p></div><span id="chart-note" class="data-badge">Sem dados</span></div><div id="chart" class="chart"></div></section>
   <section class="card peaks-card"><div class="section-title"><div><h2>Resumo dos picos</h2><p class="muted">Os cinco maiores momentos, em ordem de intensidade.</p></div></div><div id="peaks"></div></section>
 </main><script src="/static/analysis.js"></script></body></html>
