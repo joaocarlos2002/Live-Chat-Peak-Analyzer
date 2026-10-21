@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Análise da live</title><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/analysis.css"></head>
+<body><main class="shell analysis-shell">
+  <a class="back" href="/">← Voltar para lives</a>
+  <section class="analysis-hero">
+    <div class="hero-copy"><p class="eyebrow">ANÁLISE DA TRANSMISSÃO</p><h1 id="title">Carregando...</h1><p id="subtitle" class="muted"></p></div>
+    <div class="hero-actions"><button id="retry-chat" class="retry-button">↻ Tentar coletar chat</button>
+    <label class="window-control">Intervalo<select id="window"><option value="1">1 segundo</option><option value="5">5 segundos</option><option value="10" selected>10 segundos</option><option value="30">30 segundos</option><option value="60">1 minuto</option><option value="300">5 minutos</option></select></label>
+    </div>
+  </section>
+  <section class="card player-card"><video id="player" controls preload="metadata"></video><div id="video-empty" class="video-empty">Vídeo local indisponível</div><p id="video-note" class="muted"></p></section>
+  <section class="card chart-card"><div class="section-title"><div><h2>Timeline do fluxo</h2><p class="muted">As barras mais altas são os momentos com maior volume de mensagens. Clique para ir ao vídeo.</p></div><span id="chart-note" class="data-badge">Sem dados</span></div><div id="chart" class="chart"></div></section>
+  <section class="card peaks-card"><div class="section-title"><div><h2>Resumo dos picos</h2><p class="muted">Os cinco maiores momentos, em ordem de intensidade.</p></div></div><div id="peaks"></div></section>
+</main><script src="/static/analysis.js"></script></body></html>
